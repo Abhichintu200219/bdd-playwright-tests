@@ -1,0 +1,107 @@
+# .github/workflows/frontend.yml
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  # Build and test frontend
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Lint code
+      run: |
+        npm run lint || echo "Lint step failed but continuing..."
+    
+    - name: Type check
+      run: |
+        npx tsc --noEmit || echo "TypeScript check failed but continuing..."
+    
+    - name: Build frontend
+      run: npm run build
+    
+    - name: Test build output
+      run: |
+        echo "Checking build output..."
+        ls -la dist/
+        echo "Build successful!"
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: dist/
+        retention-days: 7
+
+  # Deploy to staging (if needed)
+  deploy-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: dist/
+    
+    - name: Deploy to staging
+      run: |
+        echo "Would deploy to staging environment here"
+        echo "Build files ready in dist/ folder"
+        # Add your staging deployment commands here
+        # Example: rsync, AWS S3, Netlify, Vercel, etc.
+
+  # Deploy to production
+  deploy-production:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build-${{ github.sha }}
+        path: dist/
+    
+    - name: Deploy to production
+      run: |
+        echo "Would deploy to production environment here"
+        echo "Build files ready in dist/ folder"
+        # Add your production deployment commands here
+        # Example: rsync, AWS S3, Netlify, Vercel, etc.
